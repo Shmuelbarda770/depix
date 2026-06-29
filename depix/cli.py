@@ -1,11 +1,11 @@
 import typer
-from pydeps.watcher import start_watching
+from depix.watcher import start_watching
 app = typer.Typer()
 
 @app.command()
 def watch(path: str = "."):
     """Watch project and auto-update requirements.txt"""
-    print(f"[pydeps] Watching {path} ...")
+    print(f"[depix] Watching {path} ...")
     start_watching(path)
 
 def main():
