@@ -1,9 +1,9 @@
 name: Publish Python Package
 
 on:
-  create:
+  push:
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
   build-and-publish:
