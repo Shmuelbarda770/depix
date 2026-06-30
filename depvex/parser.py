@@ -1,11 +1,11 @@
 import ast
 import sys
-imports = set()
+
 STD_LIB = set(getattr(sys, "stdlib_module_names", set())) | set(sys.builtin_module_names)
 
 def extract_imports(code: str):
     tree = ast.parse(code)
-    
+    imports = set()
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
