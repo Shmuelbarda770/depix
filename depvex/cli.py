@@ -3,6 +3,7 @@ import argparse
 import sys
 
 from depvex.watcher import ProjectWatcher
+from depvex.resolver import DependencyResolver
 
 class DepvexCLI:
     def __init__(self) -> None:
@@ -18,7 +19,6 @@ class DepvexCLI:
 
     def watch(self, path: str) -> None:
         print(f"[depvex] Watching {path} ...")
-        from depvex.resolver import DependencyResolver
 
         resolver = DependencyResolver()
         resolver.rebuild_requirements(path)

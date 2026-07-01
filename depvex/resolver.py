@@ -7,7 +7,10 @@ import time
 import urllib.request
 from functools import lru_cache
 
-import requests
+try:
+    import requests  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - defensive fallback
+    requests = None
 
 from depvex.parser import ImportExtractor
 
@@ -22,6 +25,9 @@ class DependencyResolver:
         self.parser = parser or ImportExtractor()
 
     def internet_check(self, timeout: int = 3) -> bool:
+        if requests is None:
+            return False
+
         for url in self.CAPTIVE_PORTAL_URLS:
             try:
                 response = requests.get(url, timeout=timeout)
@@ -92,8 +98,17 @@ class DependencyResolver:
             for line in sorted(set(lines)):
                 handle.write(line + "\n")
 
-    @lru_cache(maxsize=256)
     def _get_imports_for_file(self, file_path: str) -> tuple[str, ...]:
+        try:
+            stat = os.stat(file_path)
+            cache_key = (file_path, stat.st_mtime_ns)
+            return self._get_imports_for_file_cached(cache_key)
+        except (OSError, SyntaxError):
+            return ()
+
+    @lru_cache(maxsize=256)
+    def _get_imports_for_file_cached(self, cache_key: tuple[str, int]) -> tuple[str, ...]:
+        file_path, _ = cache_key
         try:
             with open(file_path, "r", encoding="utf-8") as handle:
                 return tuple(self.parser.extract_imports(handle.read()))
@@ -130,6 +145,12 @@ class DependencyResolver:
                 if self._normalize_module_name(entry)
             }
 
+            current_normalized_names = {
+                self._normalize_module_name(module_name)
+                for module_name in discovered
+                if self._normalize_module_name(module_name)
+            }
+
             for module_name in sorted(discovered):
                 if not module_name:
                     continue
@@ -138,12 +159,17 @@ class DependencyResolver:
                 if not normalized:
                     continue
 
-                if normalized in existing_by_name:
+                if normalized in existing_by_name and normalized in current_normalized_names:
                     requirements.append(existing_by_name[normalized])
                 else:
                     requirements.append(self.resolve(module_name, has_net))
 
-            return self.write_req(requirements, path=output_path) or requirements
+            for existing_name in sorted(existing_by_name):
+                if existing_name not in current_normalized_names:
+                    continue
+
+            self.write_req(requirements, path=output_path)
+            return requirements
 
         for module_name in sorted(discovered):
             if module_name:
